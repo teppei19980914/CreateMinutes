@@ -1,0 +1,9 @@
+# Markdown→PDF 変換ツール用（ローカルのみ）
+# pandoc があれば最優先で使用。未導入時のフォールバック用Python依存。
+markdown>=3.4.0
+weasyprint>=61.0
+
+
+
+
+

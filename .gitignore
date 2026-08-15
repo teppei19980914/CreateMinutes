@@ -5,3 +5,34 @@
 .DS_Store
 Thumbs.db
 *.swp
+
+# Security (added by ClaudeCodeTemplate)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+secrets.yaml
+secrets.yml
+id_rsa
+id_rsa.pub
+.claude/.git-automation-setup-done
+
+# Python (backend/)
+backend/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Node (frontend/)
+frontend/node_modules/
+frontend/dist/
+frontend/node_modules/.tmp/
+
+# 実行時生成データ（設計書 docs/DESIGN.md §2 参照）
+/data/
+/models/

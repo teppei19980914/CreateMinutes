@@ -1,0 +1,36 @@
+[project]
+name = "minutes-app"
+version = "0.1.0"
+description = "議事録自動生成アプリ バックエンド"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "cryptography>=50.0.0",
+    "faster-whisper>=1.2.1",
+    "keyring>=25.7.0",
+    "newtonx-adk",
+    "pyaudiowpatch>=0.2.12.8 ; sys_platform == 'win32'",
+    "pywebview>=6.2.1",
+    "pywin32>=312 ; sys_platform == 'win32'",
+    "sqlcipher3>=0.6.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.3",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.uv.sources]
+newtonx-adk = { path = "../newtonx_adk/newtonx_adk-0.10.5-py3-none-any.whl" }

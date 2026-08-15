@@ -1,0 +1,28 @@
+NewtonX Auto Runner Results
+Generated: 2025-12-13T16:17:19.419180
+
+Task: 初期化
+Status: success
+Timestamp: 2025-12-13T16:17:07.470495
+Result: {'assistants_count': 23, 'assistants': ['セラク全社アシスタント', 'GPT-4o mini(高速)', 'GPT-4o(高性能)', 'NewtonX運用', 'R6持続可能な食品等流通対策事業事務手続']}
+--------------------------------------------------
+Task: チャット作成
+Status: success
+Timestamp: 2025-12-13T16:17:11.412200
+Result: {'chat_uid': '21a5f622-4725-45bd-95f4-6a505ab10199', 'title': 'Auto Runner Test Chat', 'assistant': 'GPT-4o mini(高速)'}
+--------------------------------------------------
+Task: メッセージ送信
+Status: success
+Timestamp: 2025-12-13T16:17:12.804943
+Result: {'message': 'こんにちは！Auto Runnerのテストです。', 'response': 'こんにちは！Auto Runnerのテストですね。どのようにお手伝いできるか教えてください。', 'web_search': False, 'knowledge_search': False}
+--------------------------------------------------
+Task: ファイルアップロード
+Status: success
+Timestamp: 2025-12-13T16:17:16.770704
+Result: {'uploaded_files': [{'file': 'sample_document.txt', 'type': 'document', 'result': True, 'document_id': True}], 'total_files': 1, 'chat_uid': '21a5f622-4725-45bd-95f4-6a505ab10199'}
+--------------------------------------------------
+Task: ファイル分析
+Status: success
+Timestamp: 2025-12-13T16:17:19.414495
+Result: {'analysis_message': 'このファイルの中身について教えてください。', 'response': 'ファイルの内容について具体的な情報を提供するためには、そのファイルに関する詳細が必要です。ファイルの種類（例: テキスト、画像、スプレッドシートなど）や、どのような情報を知りたいのかを教えていただけますか？また、ファイルの内容を概要として説明することも可能ですので、具体的な質問をお寄せください。', 'web_search': False, 'knowledge_search': False, 'uploaded_files': [{'file': 'sample_document.txt', 'type': 'document', 'result': True, 'document_id': True}]}
+--------------------------------------------------

@@ -56,9 +56,9 @@ description: 新機能の実装前に STRIDE フレームワークで脅威モ�
 3. **Accept (受容)**: リスクを受け入れる → 理由を文書化
 4. **Eliminate (除去)**: 機能自体を設計変更
 
-### Step 4: DESIGN.md への反映
+### Step 4: docs/DESIGN.md への反映
 
-以下のセクションを `DESIGN.md` に追加または更新:
+以下のセクションを `docs/DESIGN.md` に追加または更新:
 
 ```markdown
 ## セキュリティ設計（機能名）
