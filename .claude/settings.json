@@ -1,0 +1,72 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Read"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"{{PROJECT_DIR}}/.claude/hooks/session-start-git.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"{{PROJECT_DIR}}/.claude/hooks/session-start-tools-check.sh\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"{{PROJECT_DIR}}/.claude/hooks/block-dangerous-edit.sh\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"{{PROJECT_DIR}}\" && {{FORMAT_COMMAND}} $(echo $CLAUDE_TOOL_INPUT | grep -oP '\"file_path\":\\s*\"\\K[^\"]+') 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"{{PROJECT_DIR}}/.claude/hooks/secret-scan.sh\""
+          },
+          {
+            "type": "command",
+            "command": "cd \"{{PROJECT_DIR}}\" && echo '=== デプロイチェック ===' && echo '--- 静的解析 ---' && {{ANALYZE_COMMAND}} 2>&1 && echo '--- テスト ---' && {{TEST_COMMAND}} 2>&1 && echo '=== チェック完了 ==='"
+          },
+          {
+            "type": "command",
+            "command": "bash \"{{PROJECT_DIR}}/.claude/hooks/vuln-scan.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"{{PROJECT_DIR}}/.claude/hooks/auto-commit.sh\""
+          },
+          {
+            "type": "prompt",
+            "prompt": "このセッションで編集したファイルについて、以下の観点で最終チェックを行い、問題があれば報告してください。問題がなければ「チェック完了: 問題なし」と報告してください。変更規模に応じて確認の深さを調整してよい（例: ドキュメントのみの軽微な変更は簡易確認で可、ロジック変更を含む場合は各観点を丁寧に確認する）。\n\n1. 横展開チェック: 修正した問題と同じパターンが他ファイルに残っていないか\n2. コーディングルールチェック: CODING_RULES.md に基づき、重複コード/重複定数・ID（DRY違反）、ハードコードされた文言(ゼロハードコーディング違反)、命名規則・コメント規約違反がないか\n3. セキュリティチェック: ユーザー入力のサニタイズ漏れ、生SQL、ハードコードされた機密情報がないか。vuln-scan.sh（OSV）でCRITICAL/HIGHの依存脆弱性が出ていれば対応要否を報告\n4. パフォーマンスチェック: ループ内DB問い合わせ、不要な再描画、不要なProvider watchがないか\n5. テスト整合性: 変更した場合、テストコードの旧文言が残っていないか。実装変更であれば新しい分岐に対応するテストが追加され、例外処理を除きカバレッジ100%を目指せているか（CODING_RULES.md参照）\n6. ドキュメント更新: 機能追加・仕様変更があった場合、ドキュメントへの反映が必要か確認"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+# ローカル限定の個人設定（環境固有パス・権限を含むため共有しない）
+.claude/settings.local.json
+
+# OS/エディタ
+.DS_Store
+Thumbs.db
+*.swp
