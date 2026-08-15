@@ -1,8 +1,8 @@
-# {{PROJECT_NAME}} - Claude Code 運用ガイド
+# 議事録自動生成アプリ（CreateMinutes） - Claude Code 運用ガイド
 
 ## プロジェクト概要
 
-- **{{PROJECT_NAME}}** - {{TECH_STACK}} プロジェクト
+- **議事録自動生成アプリ（CreateMinutes）** - Python (pywebview) + React/TypeScript プロジェクト
 
 ## 情報源の信頼性ルール（必須遵守・例外なし）
 
@@ -34,14 +34,14 @@
 - 不確実情報に基づくコード提案は**ユーザーに事前確認**してから実装する
 - 事後に誤りが発覚した場合は、正しい一次ソースを添えて修正する
 
-## コーディングルール（詳細: `CODING_RULES.md`）
+## コーディングルール（詳細: `docs/CODING_RULES.md`）
 
-詳細ルールは `CODING_RULES.md` に一元化する（重複記述はトークン消費増につながるため禁止）。
+詳細ルールは `docs/CODING_RULES.md` に一元化する（重複記述はトークン消費増につながるため禁止）。
 
 - **① DRYの原則** — 同じ処理を2箇所に書かない。共通化できないか先に検索する
 - **② ゼロハードコーディング** — 画面文言・ID等は専用ファイルに集約し直書きしない
 - **テストカバレッジ** — 追加実装・変更には必ずテストを追加。例外処理を除きカバレッジ100%を目指す
-- 置き場所ルール・命名規則・コメントの書き方も `CODING_RULES.md` を参照
+- 置き場所ルール・命名規則・コメントの書き方も `docs/CODING_RULES.md` を参照
 
 ## 運用フロー（日次ブランチ自動化）
 
@@ -63,7 +63,7 @@
 
 ## コミットルール
 
-- テストコードの追加・修正を伴わないソースコード変更はコミットしない（カバレッジ目標は `CODING_RULES.md` 参照）
+- テストコードの追加・修正を伴わないソースコード変更はコミットしない（カバレッジ目標は `docs/CODING_RULES.md` 参照）
 - コミットメッセージは変更内容を端的に記述する
 - **コミット & プッシュは Stop Hook が自動実行**（`auto-commit.sh`）
 - **マージは開発者が手動実施**（自動化対象外 — 安全のため）
@@ -75,7 +75,7 @@
 実装完了後、コミット前に以下を必ず実施する。詳細手順は各スキルを参照。
 
 1. **横展開チェック** — 同一パターン・重複ロジック（DRY違反）を検索し漏れなく対応
-2. **コーディングルールチェック** — `CODING_RULES.md` に基づき多層防御
+2. **コーディングルールチェック** — `docs/CODING_RULES.md` に基づき多層防御
    - **観点別レビュー (Agents)**: `dry-reviewer`（重複コード/定数/複雑度）/ `style-reviewer`（命名/コメント）/ `label-checker`（ハードコード文言）を該当する変更時に並列実行（起動条件は `fix-issue` スキル参照。無関係な観点まで毎回全起動しない）
 3. **セキュリティチェック** — 以下の仕組みで多層防御
    - **自動ブロック (Hooks)**: 危険API (`eval`/`innerHTML`/`dangerouslySetInnerHTML`/動的`exec`)、機密ファイル (`.env`/`*.pem`/`*.key`) への編集、機密情報の混入を自動検知
@@ -84,16 +84,16 @@
    - **設計段階 (Skill)**: 新機能実装前に `/threat-model` で STRIDE 分析を必須化
    - **セキュリティテスト必須**: 認可境界、不正入力（SQLi/XSS payload）、認証バイパス試行のテストを追加
 4. **パフォーマンスチェック** — N+1禁止、不要な再描画、非同期並列化
-5. **デプロイチェック** — `{{ANALYZE_COMMAND}}` → `{{TEST_COMMAND}}` → `{{BUILD_COMMAND}}` をローカル実行
+5. **デプロイチェック** — `uv run ruff check .`(backend) / `npm run lint`(frontend) → `uv run pytest`(backend) / `npm test`(frontend) → `npm run build`(frontend) をローカル実行
 6. **単体テスト** — テスト数の増減を確認、旧文言の残留を検索。例外処理を除きカバレッジ100%を目指す（`test-coverage-reviewer` で確認）
-7. **ドキュメント最新化** — 変更内容に応じて以下のドキュメントを必ず更新する
+7. **ドキュメント最新化** — 変更内容に応じて以下のドキュメントを必ず更新する（本プロジェクトではドキュメントを `docs/` 配下に統一している）
    - `README.md` — プロジェクト概要・セットアップ手順
-   - `OPERATIONS.md` — 運用手順・監視・障害対応
-   - `REQUIREMENTS.md` — 要件定義
-   - `SPECIFICATION.md` — 機能仕様
-   - `DESIGN.md` — 設計（アーキテクチャ・データモデル等）
-   - `INFRASTRUCTURE.md` — インフラ構成・環境情報
-   - `CODING_RULES.md` — 置き場所ルール・命名規則の変更
+   - `docs/OPERATIONS.md` — 運用手順・監視・障害対応
+   - `docs/REQUIREMENTS.md` — 要件定義
+   - `docs/SPECIFICATION.md` — 機能仕様
+   - `docs/DESIGN.md` — 設計（アーキテクチャ・データモデル等）
+   - `docs/INFRASTRUCTURE.md` — インフラ構成・環境情報（未作成。インフラ構築時に追加）
+   - `docs/CODING_RULES.md` — 置き場所ルール・命名規則の変更
 
 ## Claude Code レベル最適化ルール
 
@@ -103,4 +103,4 @@
 - **Skills**: 繰り返し使う作業手順を配置。CLAUDE.md と重複する詳細は Skills 側に集約
 - **Hooks**: 自動化可能な品質チェックを追加。手動で繰り返している作業があれば Hook 化を検討
 - **Agents**: 独立して並行実行できるレビュー作業を配置。サブエージェントの独立コンテキストで実行することでメインスレッドのトークン消費を抑える
-- **重複記述の禁止**: 同じルールを CLAUDE.md / Skills / Agents / docs に複製しない。判定基準は `CODING_RULES.md` 等の単一ファイルに集約し、各所からは参照のみ行う
+- **重複記述の禁止**: 同じルールを CLAUDE.md / Skills / Agents / docs に複製しない。判定基準は `docs/CODING_RULES.md` 等の単一ファイルに集約し、各所からは参照のみ行う

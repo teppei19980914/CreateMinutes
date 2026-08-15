@@ -1,0 +1,3 @@
+purchase_date,total_amount,has_t_number,purpose,vendor,file_name,file_path
+2025-05-22,1800,True,タクシー乗車料金,松竹交通株式会社,receipt2.jpeg,sample_data/receipt2.jpeg
+2025-07-10,180,True,プリント代,セブン-イレブン 高山岡本町店,receipt1.png,sample_data/receipt1.png

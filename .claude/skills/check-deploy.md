@@ -27,8 +27,8 @@ gh run view <RUN_ID> --log-failed
 4. 修正後にローカルで検証する
 
 ```bash
-{{ANALYZE_COMMAND}}
-{{TEST_COMMAND}}
+[A[B未確定
+未確定
 ```
 
 5. ユーザーにコミット & プッシュを案内する
