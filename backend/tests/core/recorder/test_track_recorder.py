@@ -3,7 +3,15 @@ import wave
 
 import pytest
 
+from minutes_app.core.recorder.device_manager import DeviceInfo
 from minutes_app.core.recorder.track_recorder import TrackRecorder, calculate_rms
+
+# サンプルレート=4Hz の架空デバイス。rolling_seconds=1.0 と組み合わせると
+# ローテーション判定の閾値が「4フレーム溜まったら次のファイルへ」となり、
+# 4サンプル(=1チャンク)ごとのローテーション挙動を単純な整数計算で検証できる。
+ROLLING_TEST_DEVICE = DeviceInfo(
+    index=1, name="テスト用", is_loopback=False, max_input_channels=1, default_sample_rate=4
+)
 
 
 def _pcm16(*samples: int) -> bytes:
@@ -22,11 +30,10 @@ class TestCalculateRms:
 
 
 class TestTrackRecorder:
-    def test_start_opens_stream_with_device_native_format(
+    def test_start_opens_stream_and_first_rolling_file_with_device_native_format(
         self, fake_pyaudio, mic_device, tmp_path
     ) -> None:
-        output_path = tmp_path / "mic.wav"
-        recorder = TrackRecorder(fake_pyaudio, mic_device, output_path)
+        recorder = TrackRecorder(fake_pyaudio, mic_device, tmp_path, "mic")
 
         recorder.start()
 
@@ -34,12 +41,13 @@ class TestTrackRecorder:
         assert fake_pyaudio.open_kwargs["rate"] == mic_device.default_sample_rate
         assert fake_pyaudio.open_kwargs["input_device_index"] == mic_device.index
         assert fake_pyaudio.open_kwargs["input"] is True
-        assert output_path.exists()
+        assert (tmp_path / "mic_0001.wav").exists()
+        assert recorder.rolling_file_paths == [tmp_path / "mic_0001.wav"]
 
         recorder.stop()
 
     def test_start_twice_raises(self, fake_pyaudio, mic_device, tmp_path) -> None:
-        recorder = TrackRecorder(fake_pyaudio, mic_device, tmp_path / "mic.wav")
+        recorder = TrackRecorder(fake_pyaudio, mic_device, tmp_path, "mic")
         recorder.start()
 
         with pytest.raises(RuntimeError):
@@ -48,7 +56,7 @@ class TestTrackRecorder:
         recorder.stop()
 
     def test_stop_without_start_is_noop(self, fake_pyaudio, mic_device, tmp_path) -> None:
-        recorder = TrackRecorder(fake_pyaudio, mic_device, tmp_path / "mic.wav")
+        recorder = TrackRecorder(fake_pyaudio, mic_device, tmp_path, "mic")
 
         recorder.stop()  # 例外が発生しないことを確認
 
@@ -57,8 +65,8 @@ class TestTrackRecorder:
     def test_callback_writes_frames_and_updates_last_rms(
         self, fake_pyaudio, mic_device, tmp_path
     ) -> None:
-        output_path = tmp_path / "mic.wav"
-        recorder = TrackRecorder(fake_pyaudio, mic_device, output_path)
+        output_dir = tmp_path
+        recorder = TrackRecorder(fake_pyaudio, mic_device, output_dir, "mic")
         recorder.start()
 
         chunk = _pcm16(200, -200, 200, -200)
@@ -69,7 +77,7 @@ class TestTrackRecorder:
 
         recorder.stop()
 
-        with wave.open(str(output_path), "rb") as f:
+        with wave.open(str(output_dir / "mic_0001.wav"), "rb") as f:
             assert f.getnchannels() == mic_device.max_input_channels
             assert f.getframerate() == mic_device.default_sample_rate
             assert f.getsampwidth() == 2
@@ -78,7 +86,7 @@ class TestTrackRecorder:
     def test_stop_closes_stream_and_finalizes_wave_file(
         self, fake_pyaudio, mic_device, tmp_path
     ) -> None:
-        recorder = TrackRecorder(fake_pyaudio, mic_device, tmp_path / "mic.wav")
+        recorder = TrackRecorder(fake_pyaudio, mic_device, tmp_path, "mic")
         recorder.start()
 
         recorder.stop()
@@ -93,8 +101,7 @@ class TestTrackRecorder:
         self, fake_pyaudio_cls, mic_device, tmp_path
     ) -> None:
         pa = fake_pyaudio_cls(open_error=OSError("device is busy"))
-        output_path = tmp_path / "mic.wav"
-        recorder = TrackRecorder(pa, mic_device, output_path)
+        recorder = TrackRecorder(pa, mic_device, tmp_path, "mic")
 
         with pytest.raises(OSError):
             recorder.start()
@@ -102,6 +109,33 @@ class TestTrackRecorder:
         assert recorder._wave_writer is None
         assert recorder._stream is None
 
-        # WAVハンドルがリークしていれば、正常なヘッダーで再オープンできない
-        with wave.open(str(output_path), "rb") as f:
+        # WAVハンドルがリークしていなければ、正常なヘッダーで再オープンできる
+        with wave.open(str(tmp_path / "mic_0001.wav"), "rb") as f:
             assert f.getnframes() == 0
+
+    def test_rotates_to_next_file_once_rolling_limit_reached(
+        self, fake_pyaudio, tmp_path
+    ) -> None:
+        # rolling_seconds=1.0 * サンプルレート4Hz = 4フレームで次ファイルへ切り替わる
+        recorder = TrackRecorder(
+            fake_pyaudio, ROLLING_TEST_DEVICE, tmp_path, "mic", rolling_seconds=1.0
+        )
+        recorder.start()
+        callback = fake_pyaudio.open_kwargs["stream_callback"]
+        chunk = _pcm16(10, 10, 10, 10)
+
+        callback(chunk, 4, {}, 0)  # ちょうど閾値(4フレーム)まで file 1 に書き込む
+        assert recorder.rolling_file_paths == [tmp_path / "mic_0001.wav"]
+
+        callback(chunk, 4, {}, 0)  # 閾値到達済みのため file 2 へローテーション
+        assert recorder.rolling_file_paths == [
+            tmp_path / "mic_0001.wav",
+            tmp_path / "mic_0002.wav",
+        ]
+
+        recorder.stop()
+
+        with wave.open(str(tmp_path / "mic_0001.wav"), "rb") as f:
+            assert f.getnframes() == 4
+        with wave.open(str(tmp_path / "mic_0002.wav"), "rb") as f:
+            assert f.getnframes() == 4

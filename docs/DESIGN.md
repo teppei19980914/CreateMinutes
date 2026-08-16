@@ -120,6 +120,16 @@ minutes-app/
 
 ## 3. データベース設計
 
+#### Phase 1 実装メモ（db/connection.py）
+
+DB本体（SQLite）は当初 SQLCipher による常時暗号化を想定していたが、暗号鍵の管理を担う
+`core/crypto/key_manager.py`（keyring経由の鍵生成・取得）は §9 実装順序表でPhase 4に
+割り当てられている。Phase 1時点でDBだけ先に暗号化すると、鍵管理未実装のまま暗号鍵を
+扱うことになり本末転倒なため、**Phase 1〜3は平文SQLiteとし、Phase 4で `key_manager.py`
+と同時にSQLCipherへ切り替える**（音声ファイル側の暗号化見送りと同じ判断。§5.1参照）。
+マイグレーション（`db/migrations/*.sql`）は Django/Alembic 等を導入せず、`connection.py` が
+`schema_migrations` テーブルで適用済みファイルを追跡する最小実装とする。
+
 ### 3.1 ER図
 
 ```mermaid
@@ -336,16 +346,39 @@ stateDiagram-v2
 
 ```
 data/audio/{meeting_uid}/
-├─ mic_0001.wav, mic_0002.wav, ...        # 60秒ローリング（暗号化済み）
+├─ mic_0001.wav, mic_0002.wav, ...        # 60秒ローリング
 ├─ loopback_0001.wav, ...
-└─ (終了時) mic.wav / loopback.wav に結合 → 圧縮 → 連番削除
+└─ (終了時) mic.wav / loopback.wav に結合
 ```
 
-- フォーマット：16kHz / mono / 16bit PCM WAV。
+- フォーマット：デバイスのネイティブ rate/channels、16bit PCM WAV（16kHz/mono統一はしない。
+  Phase 0 実装メモ参照）。
 - 60秒ごとにファイルをクローズして次の連番を開く。クラッシュ時の損失は最大60秒。
-- 各ローリングファイルはクローズ時に暗号化（§5.5）。結合時は復号 → 結合 → 再暗号化。
+- 各ローリングファイルの暗号化（§5.5）は Phase 4 で追加する（§3「Phase 1 実装メモ」と同じ
+  理由で、鍵管理未実装のPhase 1〜3では平文WAVのまま保存する）。
 - 終了ボタン押下で両トラックを結合し、`transcribe` ジョブを即時投入（会議情報入力と並行実行）。
-- 文字起こし完了後、WAV → MP3（64kbps mono）圧縮 + 暗号化し、`raw_wav` を削除。`compressed` に expires_at（+1ヶ月）を設定。
+- 文字起こし完了後の WAV→MP3圧縮（F-9-1）・物理削除バッチ（F-9-2）は、キュー機能（§4）と
+  同じPhase 4で実装する。Phase 1時点では `raw_wav` のまま保持する。
+
+#### Phase 1 実装メモ（session.py）
+
+- ローリング書き出し自体は `track_recorder.py`（PortAudioコールバック内でファイルを
+  ローテーション）が担い、`session.py` はマイク・ループバックの2本の `TrackRecorder` を
+  同時に開始・停止し、終了時に `combine_rolling_files` で1本へ結合する薄い統括層とする。
+- 復旧提案（F-1-4）は `find_incomplete_sessions()` として検出ロジックのみ実装する
+  （「結合済みファイルが無いのにローリングファイルが残っている」セッションを検出）。
+  実際にユーザーへ提案するUIはPhase 3以降。
+- F-1-8「前の会議の議事録生成中でも次の会議の録音を開始できる」は、録音（`RecordingSession`）
+  自体はキューと無関係に呼び出せる設計だが、Phase 1時点ではジョブキュー（§4）が
+  未実装（Phase 4）のため、「文字起こし処理中に次の録音を開始する」動線はUI・ワーカー
+  スレッド実装後（Phase 3〜4）に完成する。
+- 開始・終了時刻（F-1-7）は `RecordingSession.start()`/`stop()` で実測し
+  `RecordingSessionResult.started_at`/`ended_at` として返す。`bench_transcribe.py` の
+  `--session-dir`（別プロセスで録音済みのセッションを後から指定するモード）では実測値が
+  無いため、`mic.wav` の更新日時から `ended_at`、そこから音声長を引いて `started_at` を
+  逆算するフォールバックとする（実測に劣るが、時系列の一貫性は保てる）。
+- 実機（開発機）での動作確認：録音→ローリング→結合→`bench_transcribe.py`によるDB永続化まで
+  一気通貫で成功することを確認済み（§5.2「Phase 1 実装メモ」参照）。
 
 ### 5.2 文字起こし（transcriber）
 
@@ -610,3 +643,4 @@ flowchart LR
 | v0.9 | 2026-08-15 | 要件定義書 v0.9 に基づき初版作成 |
 | v0.10 | 2026-08-15 | `newtonx_adk`（ADK本体・v0.10.5）の公式ドキュメントとソースコードを突き合わせ検証。§5.3（parent_order非対応・終端マーカー方式・無応答時リカバリ）、§5.5〜5.6（PAT認証方式への変更、authenticate_autoの呼び出し経路）、§6.2/§7（設定画面・ブリッジAPI）、§8（例外階層・エラーハンドリング）、§10（未確定事項3件追加）を修正 |
 | v0.11 | 2026-08-16 | Phase 0（§9）着手。§5.1 に「Phase 0 実装メモ」を追加し、pyaudiowpatch公式サンプルに準拠したデバイス解決・ストリームopen方式（ネイティブ format/channels/rate、16kHz/mono変換は非対応）を明記。`backend/minutes_app/core/recorder/device_manager.py` `track_recorder.py` `poc_verify.py` を実装し、開発機でのストリームopen/close成功を確認（§10 #1 は会議アプリ実行下の手動確認が別途必要） |
+| v0.12 | 2026-08-17 | Phase 1（§9）着手。DB暗号化（SQLCipher/key_manager.py）をPhase 4へ先送りする決定を§3に明記し平文SQLiteで実装。§5.1に60秒ローリング（`track_recorder.py`拡張）・2トラック統括/結合/復旧検出（`session.py`新規）の実装メモを追加。§5.2にfaster-whisperラッパ（`whisper_engine.py`）・2トラックマージ（`merger.py`）・固有名詞辞書（`dictionary.py`）を実装し、F-2-3のCPU並列制御は`cpu_threads`パラメータでの簡易対応とした理由を明記。`db/connection.py`・`db/migrations/0001_meetings_audio_files_utterances.sql`・`db/repositories/*`、および録音→文字起こし→マージ→DB永続化を一気通貫で実行する`bench_transcribe.py`を実装。開発機での録音〜DB永続化のエンドツーエンド動作、およびDB書き込みのトランザクション原子性（例外時の完全ロールバック）を実機・自動テスト双方で確認 |

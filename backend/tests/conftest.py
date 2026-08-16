@@ -1,7 +1,9 @@
-"""recorder配下のテストで共有するPyAudio(pyaudiowpatch)テストダブル。
+"""backend/tests 全体で共有するPyAudio(pyaudiowpatch)テストダブル。
 
 `FakePyAudio`/`FakeStream` を各テストファイルが個別に実装すると、pyaudiowpatch実APIの
 シグネチャ変更時に修正漏れが起きやすい（DRY違反）ため、本ファイルに一元化する。
+（トップレベルの `conftest.py` に置くことで、recorder配下だけでなく `bench_transcribe`
+等の録音セッションを扱う全テストから再利用できる。）
 """
 
 import pytest
@@ -44,15 +46,18 @@ class FakeStream:
 
 
 class FakePyAudio:
-    """device_manager/track_recorder/poc_verify のテストで共有する PyAudio テストダブル。
+    """device_manager/track_recorder/session/poc_verify/bench_transcribe のテストで共有する
+    PyAudio テストダブル。
 
-    `with pyaudio.PyAudio() as pa:` 形式（poc_verify.main）でも直接（他テスト）でも使えるよう、
+    `with pyaudio.PyAudio() as pa:` 形式でも直接（他テスト）でも使えるよう、
     コンテキストマネージャも常に実装する。
 
     :param loopback_devices: get_loopback_device_info_generator() が返す生dictのリスト
     :param default_input: get_default_wasapi_device(d_in=True) の戻り値
     :param default_loopback: get_default_wasapi_loopback() の戻り値
     :param open_error: 指定時、open() 呼び出しでこの例外を送出する（異常系テスト用）
+    :param open_fails_on_call: 指定時、`open_error` をこの呼び出し回数目（1始まり）のみで
+        送出する。省略時は毎回送出する（2トラック中の片方だけ失敗させたい場合に使う）
     """
 
     def __init__(
@@ -62,6 +67,7 @@ class FakePyAudio:
         default_input: dict | None = None,
         default_loopback: dict | None = None,
         open_error: Exception | None = None,
+        open_fails_on_call: int | None = None,
     ) -> None:
         self._loopback_devices = (
             loopback_devices if loopback_devices is not None else [LOOPBACK_RAW_DEVICE]
@@ -71,7 +77,10 @@ class FakePyAudio:
             default_loopback if default_loopback is not None else LOOPBACK_RAW_DEVICE
         )
         self._open_error = open_error
+        self._open_fails_on_call = open_fails_on_call
         self.open_kwargs: dict | None = None
+        self.open_calls: list[dict] = []
+        self.streams: list[FakeStream] = []
         self.stream = FakeStream()
 
     def get_loopback_device_info_generator(self):
@@ -86,9 +95,17 @@ class FakePyAudio:
 
     def open(self, **kwargs):
         self.open_kwargs = kwargs
-        if self._open_error is not None:
+        self.open_calls.append(kwargs)
+        call_number = len(self.open_calls)
+        should_fail = self._open_error is not None and (
+            self._open_fails_on_call is None or call_number == self._open_fails_on_call
+        )
+        if should_fail:
             raise self._open_error
-        return self.stream
+        stream = FakeStream()
+        self.streams.append(stream)
+        self.stream = stream
+        return stream
 
     def __enter__(self) -> FakePyAudio:
         return self
