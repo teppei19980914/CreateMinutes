@@ -18,6 +18,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
     "ruff>=0.16.3",
 ]
 
@@ -31,6 +32,14 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "if __name__ == .__main__.:",
+]
 
 [tool.uv.sources]
 newtonx-adk = { path = "../newtonx_adk/newtonx_adk-0.10.5-py3-none-any.whl" }

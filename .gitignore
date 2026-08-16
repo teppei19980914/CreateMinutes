@@ -27,6 +27,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .ruff_cache/
+.coverage
 
 # Node (frontend/)
 frontend/node_modules/
@@ -36,3 +37,4 @@ frontend/node_modules/.tmp/
 # 実行時生成データ（設計書 docs/DESIGN.md §2 参照）
 /data/
 /models/
+backend/data/
