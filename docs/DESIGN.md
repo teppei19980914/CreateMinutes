@@ -308,6 +308,30 @@ stateDiagram-v2
 - 既定値：OS既定の入力デバイス / 既定出力デバイスのループバック。設定画面で上書き可。
 - レベルメーター：開始前画面で両トラックの RMS を 100ms 間隔でUIへプッシュ。
 
+#### Phase 0 実装メモ（device_manager.py / track_recorder.py）
+
+- デバイス解決は `PyAudio.get_default_wasapi_device(d_in=True)`（マイク）/
+  `PyAudio.get_default_wasapi_loopback()`（ループバック）を使用する。いずれも
+  pyaudiowpatch 本体が提供する高レベルAPIで、既定出力デバイスに対応するループバック
+  デバイスの探索ロジックを自前実装しない（公式サンプル
+  [`pawp_record_wasapi_loopback.py`](https://github.com/s0d3s/PyAudioWPatch/blob/master/examples/pawp_record_wasapi_loopback.py)
+  と同じ解決方針）。
+- ストリームは `format=paInt16` 固定・`channels`/`rate` はデバイスの
+  `maxInputChannels`/`defaultSampleRate`（ネイティブ値）を用いて `stream_callback`
+  （非ブロッキング）で開く。WASAPI ループバックはネイティブ以外のサンプルレートでの
+  取得を保証しないため、Phase 0 の時点では 16kHz/mono への変換を行わない。F-1-1 の
+  16kHz/mono 統一は、文字起こし（faster-whisper は任意サンプルレートを自前で
+  リサンプルする）または Phase 1 の `merger.py` 側で吸収する方針とする。
+- 実機（開発機）での動作確認：`device_manager`/`track_recorder` を通した
+  マイク・ループバックそれぞれのストリーム open/close が例外なく成功することを確認済み。
+  ただし「実際の会議アプリ起動中に相手音声が収録されているか」の実証（§8 未確定事項#1）は
+  会議アプリ実行下での手動確認が別途必要（`poc_verify.py` 参照）。
+- Phase 1 で `session.py` から `TrackRecorder` を呼び出す際は、出力パスを
+  会議タイトル等の外部/UI由来の値から組み立てる設計にしないこと（`meeting_uid` のような
+  内部生成IDのみを使う）。`TrackRecorder` 自体は呼び出し元を信頼しパス検証を行わない
+  薄い実装のため、外部入力を直接パス生成に使うとパストラバーサルの入口になり得る
+  （コードレビューでの指摘事項）。
+
 #### 録音セッション
 
 ```
@@ -585,3 +609,4 @@ flowchart LR
 |---|---|---|
 | v0.9 | 2026-08-15 | 要件定義書 v0.9 に基づき初版作成 |
 | v0.10 | 2026-08-15 | `newtonx_adk`（ADK本体・v0.10.5）の公式ドキュメントとソースコードを突き合わせ検証。§5.3（parent_order非対応・終端マーカー方式・無応答時リカバリ）、§5.5〜5.6（PAT認証方式への変更、authenticate_autoの呼び出し経路）、§6.2/§7（設定画面・ブリッジAPI）、§8（例外階層・エラーハンドリング）、§10（未確定事項3件追加）を修正 |
+| v0.11 | 2026-08-16 | Phase 0（§9）着手。§5.1 に「Phase 0 実装メモ」を追加し、pyaudiowpatch公式サンプルに準拠したデバイス解決・ストリームopen方式（ネイティブ format/channels/rate、16kHz/mono変換は非対応）を明記。`backend/minutes_app/core/recorder/device_manager.py` `track_recorder.py` `poc_verify.py` を実装し、開発機でのストリームopen/close成功を確認（§10 #1 は会議アプリ実行下の手動確認が別途必要） |
