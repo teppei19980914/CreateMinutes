@@ -68,10 +68,17 @@ def _wav_duration_sec(path: Path) -> float:
 def record_session(
     pa: pyaudio.PyAudio, output_base_dir: Path, seconds: float
 ) -> RecordingSessionResult:
-    """その場でマイク・ループバックを録音し、結合済みファイル情報（開始・終了時刻付き）を返す。"""
+    """その場でマイク・ループバックを録音し、結合済みファイル情報（開始・終了時刻付き）を返す。
+
+    実際の会議は `seconds` より早く終わることがあるため、経過前にCtrl+C
+    （KeyboardInterrupt）で中断した場合もその時点までの録音を確定させてから返す。
+    """
     session = RecordingSession(pa, output_base_dir)
     session.start()
-    time.sleep(seconds)
+    try:
+        time.sleep(seconds)
+    except KeyboardInterrupt:
+        print("Ctrl+Cを検知しました。ここまでの録音を確定します...")
     return session.stop()
 
 
