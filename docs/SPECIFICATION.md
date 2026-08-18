@@ -62,6 +62,10 @@ DB永続化までを一気通貫で実行し、処理時間の実時間比（rea
 終了コード1を返す（フォールバックなし）。録音セッションを別プロセスの `--session-dir` として後から
 処理する場合、正確な開始時刻が失われるため `mic.wav` の更新日時から逆算する
 （同一プロセスで録音から処理まで行う場合は実測の開始・終了時刻を使用）。
+`--record-seconds` で指定した秒数より実際の会議が早く終わり、経過前にCtrl+C
+（KeyboardInterrupt）で中断した場合も、その時点までの録音を確定・結合してから
+文字起こし・DB永続化まで実行する（`record_session()` が `KeyboardInterrupt` を捕捉して
+`RecordingSession.stop()` を呼ぶ）。
 
 **関連ドキュメント**: `docs/DESIGN.md` §5.1「Phase 1 実装メモ」・§5.2・§9（実装順序）、
 `docs/REQUIREMENTS.md` §4 F-1-1〜F-1-8・F-2-1〜F-2-7・§7 Phase 1・§8 未確定事項#2〜#3。

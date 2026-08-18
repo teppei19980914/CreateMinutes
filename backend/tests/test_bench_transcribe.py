@@ -56,6 +56,20 @@ class TestRecordSession:
         assert (result.session_dir / "loopback.wav").exists()
         assert result.started_at <= result.ended_at
 
+    def test_finalizes_recording_when_interrupted_before_seconds_elapse(
+        self, fake_pyaudio, tmp_path, monkeypatch
+    ) -> None:
+        def _raise_keyboard_interrupt(seconds: float) -> None:
+            raise KeyboardInterrupt
+
+        monkeypatch.setattr(bench_transcribe.time, "sleep", _raise_keyboard_interrupt)
+
+        result = bench_transcribe.record_session(fake_pyaudio, tmp_path, 3600.0)
+
+        assert (result.session_dir / "mic.wav").exists()
+        assert (result.session_dir / "loopback.wav").exists()
+        assert result.started_at <= result.ended_at
+
 
 class TestRunPipeline:
     def test_persists_meeting_audio_files_and_utterances(self, tmp_path, monkeypatch) -> None:
